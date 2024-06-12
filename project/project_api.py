@@ -61,4 +61,9 @@ def report(
     y_test: pd.DataFrame,
     y_pred: pd.DataFrame,
 ):
-    print(f"Accuracy: {accuracy_score(y_test, y_pred)}")
+    accuracy = accuracy_score(y_test, y_pred)
+    print(f"Accuracy: {accuracy}")
+
+    return {
+        "accuracy": accuracy,
+    }

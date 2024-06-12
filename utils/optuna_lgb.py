@@ -50,7 +50,8 @@ def multiclass_objective(
         "feature_fraction": trial.suggest_float("feature_fraction", 0.4, 1.0),
         "bagging_fraction": trial.suggest_float("bagging_fraction", 0.4, 1.0),
         "bagging_freq": trial.suggest_int("bagging_freq", 1, 7),
-        "min_child_samples": trial.suggest_int("min_child_samples", 5, 100),
+        # this param is ignored if num_leaves specified
+        # "min_child_samples": trial.suggest_int("min_child_samples", 5, 100),
     }
 
     predict, model = train_multiclass(
