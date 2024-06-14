@@ -3,6 +3,8 @@ import pandas as pd
 import numpy as np
 from pathlib import Path
 
+model_dir = "./models"
+
 
 def train_multiclass(
     X_train: pd.DataFrame,
@@ -15,8 +17,7 @@ def train_multiclass(
     # if specified, we will save the model
     name: str = None,
 ):
-    model_dir = "./models"
-    model_path = f"{model_dir}/{name}.lgb.txt" if name else None
+    model_path = get_model_path(name) if name else None
     should_train = not model_path or not Path(model_path).is_file()
 
     if should_train:
@@ -49,10 +50,28 @@ def train_multiclass(
     if model_path:
         # load from file even if we've just trained this model
         # just to test that io works
-        model_lgb = lgb.Booster(model_file=model_path)
+        return load(name)
 
-    model_lgb_predict = lambda X: np.argmax(
-        model_lgb.predict(X, num_iteration=model_lgb.best_iteration), axis=1
-    )
+    return get_model_with_predict(model_lgb)
 
-    return model_lgb_predict, model_lgb
+
+def load(name: str) -> tuple[callable, lgb.Booster]:
+    model_lgb = lgb.Booster(model_file=get_model_path(name))
+
+    return get_model_with_predict(model_lgb)
+
+
+def get_model_with_predict(model_lgb: lgb.Booster):
+    def predict(X):
+        preds = model_lgb.predict(X, num_iteration=model_lgb.best_iteration)
+
+        if model_lgb._Booster__num_class > 1:
+            preds = np.argmax(preds, axis=1)
+
+        return preds
+
+    return predict, model_lgb
+
+
+def get_model_path(name: str) -> str:
+    return f"{model_dir}/{name}.lgb.txt"
