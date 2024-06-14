@@ -1,6 +1,41 @@
 import optuna
 
 
+def run_optuna(
+    study_name: str,
+    objective: callable,
+    storage: str = "sqlite:///optuna_studies.db",
+    n_trials=100,
+    direction="minimize",
+    seed: int = None,
+):
+    # Create a study object and optimize the objective function
+    study = optuna.create_study(
+        study_name=study_name,
+        direction=direction,
+        sampler=optuna.samplers.TPESampler(seed=seed),
+        pruner=DuplicateIterationPruner(),
+        storage=optuna.storages.RDBStorage(
+            storage,
+            {
+                # handle disconnections on google colab
+                # https://github.com/optuna/optuna/issues/622
+                "pool_pre_ping": True
+            },
+        ),
+        load_if_exists=True,
+    )
+    optimize_with_max_trials(study, objective, n_trials=n_trials)
+
+    # Best hyperparameters found
+    print("Best hyperparameters: ", study.best_params)
+
+    # Best score achieved
+    print("Best score: ", study.best_value)
+
+    return study
+
+
 def optimize_with_max_trials(
     study: "optuna.study.Study",
     objective: callable,
@@ -38,35 +73,25 @@ def optimize_with_max_trials(
     )
 
 
-def run_optuna(
-    study_name: str,
-    objective: callable,
-    storage: str = "sqlite:///optuna_studies.db",
-    n_trials=100,
-    direction="minimize",
-    seed: int = None,
-):
-    # Create a study object and optimize the objective function
-    study = optuna.create_study(
-        study_name=study_name,
-        direction=direction,
-        sampler=optuna.samplers.TPESampler(seed=seed),
-        storage=optuna.storages.RDBStorage(
-            storage,
-            {
-                # handle disconnections on google colab
-                # https://github.com/optuna/optuna/issues/622
-                "pool_pre_ping": True
-            },
-        ),
-        load_if_exists=True,
-    )
-    optimize_with_max_trials(study, objective, n_trials=n_trials)
+class DuplicateIterationPruner(optuna.pruners.BasePruner):
+    """
+    DuplicatePruner
 
-    # Best hyperparameters found
-    print("Best hyperparameters: ", study.best_params)
+    Pruner to detect duplicate trials based on the parameters.
 
-    # Best score achieved
-    print("Best score: ", study.best_value)
+    This pruner is used to identify and prune trials that have the same set of parameters
+    as a previously completed trial.
 
-    return study
+    Source: https://github.com/optuna/optuna/issues/2021#issuecomment-1702539660
+    """
+
+    def prune(
+        self, study: "optuna.study.Study", trial: "optuna.trial.FrozenTrial"
+    ) -> bool:
+        completed_trials = study.get_trials(states=[optuna.trial.TrialState.COMPLETE])
+
+        for completed_trial in completed_trials:
+            if completed_trial.params == trial.params:
+                return True
+
+        return False

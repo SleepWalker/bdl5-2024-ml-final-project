@@ -1,4 +1,5 @@
 import pandas as pd
+import optuna
 from .model_lgb import train_multiclass
 
 
@@ -53,6 +54,9 @@ def multiclass_objective(
         # this param is ignored if num_leaves specified
         # "min_child_samples": trial.suggest_int("min_child_samples", 5, 100),
     }
+
+    if trial.should_prune():
+        raise optuna.TrialPruned()
 
     predict, model = train_multiclass(
         X_train=X_train,
