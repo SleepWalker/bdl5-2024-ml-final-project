@@ -31,7 +31,9 @@ def print_missing(df: pd.DataFrame):
     print(
         f"Percent of missing values by feature (features count {missing_values_feature_count}):"
     )
-    print(missing_values_stats)
+
+    with pd.option_context("display.max_rows", None):
+        print(missing_values_stats)
 
     return missing_values_stats
 

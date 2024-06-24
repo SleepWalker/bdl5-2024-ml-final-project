@@ -64,16 +64,8 @@ def preprocess(
 ):
     destination_path = f"./data/{name}.parquet"
 
-    if Path(destination_path).is_file():
-        X = pd.read_parquet(destination_path).rename(
-            # migrate already created datasets
-            # TODO: can remove if we re-generate datasets
-            columns=lambda name: name.replace(" ", "_"),
-        )
-    else:
-        df_num = pd.read_parquet(bnum_path).rename(
-            columns=lambda name: name.replace(" ", "_"),
-        )
+    def do_process():
+        df_num = pd.read_parquet(bnum_path)
 
         # expose index as column
         df_num["abon_id"] = df_num.index
@@ -116,7 +108,7 @@ def preprocess(
         # create columns that we will require to populate
         for bnum in all_bnums:
             for source_key in col_to_flatten:
-                key = f"{source_key}_{bnum}"
+                key = f"{source_key}_{bnum}".replace(" ", "_")
                 index_map[key] = len(columns)
                 columns.append(key)
 
@@ -128,7 +120,7 @@ def preprocess(
 
                 for _, bnum_row in df_abon.iterrows():
                     for source_key in col_to_flatten:
-                        key = f"{source_key}_{bnum_row['bnum']}"
+                        key = f"{source_key}_{bnum_row['bnum']}".replace(" ", "_")
                         abon_row[index_map[key]] = bnum_row[source_key]
 
                 yield abon_row
@@ -154,7 +146,10 @@ def preprocess(
             left_index=True,
             right_index=True,
         )
-        X.to_parquet(destination_path)
+
+        return X
+
+    X = io.run_cached(destination_path, do_process)
 
     df_targets = pd.read_parquet(
         fe_path,

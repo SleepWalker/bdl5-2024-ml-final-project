@@ -62,10 +62,10 @@ def load(name: str) -> tuple[callable, lgb.Booster]:
 
 
 def get_model_with_predict(model_lgb: lgb.Booster):
-    def predict(X):
+    def predict(X, proba=False):
         preds = model_lgb.predict(X, num_iteration=model_lgb.best_iteration)
 
-        if model_lgb._Booster__num_class > 1:
+        if not proba and model_lgb._Booster__num_class > 1:
             preds = np.argmax(preds, axis=1)
 
         return preds
