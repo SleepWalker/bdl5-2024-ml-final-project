@@ -7,6 +7,7 @@ RUN pip install --no-cache-dir \
   optuna \
   plotly \
   lightgbm \
+  BorutaShap \
   torchmetrics \
   torchinfo \
   # postgress client
