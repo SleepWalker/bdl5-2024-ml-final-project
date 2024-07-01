@@ -4,7 +4,7 @@ from .model_lgb import train_multiclass
 
 
 def multiclass_objective(
-    trial,
+    trial: optuna.Trial,
     X_train: pd.DataFrame,
     y_train: pd.DataFrame,
     X_test: pd.DataFrame,
@@ -13,23 +13,26 @@ def multiclass_objective(
     num_class: int,
     seed: int = None,
 ):
+    # see: https://lightgbm.readthedocs.io/en/latest/Parameters-Tuning.html
     params = {
-        # "n_estimators": trial.suggest_categorical("n_estimators", [10000]),
-        # "max_depth": trial.suggest_int("max_depth", 1, 5),
-        # "min_gain_to_split": trial.suggest_float("min_gain_to_split", 0, 15),
-        # 'learning_rate': trial.suggest_loguniform('learning_rate', 0.01, 0.1),
         "verbosity": -1,
         "boosting_type": trial.suggest_categorical("boosting_type", ["gbdt", "dart"]),
-        "eta": trial.suggest_float("eta", 1e-8, 1.0, log=True),
+        "num_iterations": trial.suggest_int("num_iterations", 70, 1000, step=10),
+        "learning_rate": trial.suggest_float("learning_rate", 1e-8, 1.0, log=True),
         "num_leaves": trial.suggest_int("num_leaves", 2, 100),
-        "min_data_in_leaf": trial.suggest_int("min_data_in_leaf", 5, 100, step=5),
-        "feature_fraction": trial.suggest_float("feature_fraction",  0.2, 1, step=0.1),
-        "bagging_fraction": trial.suggest_float("bagging_fraction",  0.2, 1, step=0.1),
+        "min_data_in_leaf": trial.suggest_int("min_data_in_leaf", 5, 1000, step=5),
+        "max_depth": trial.suggest_int("max_depth", -1, 41, step=2),
+        "feature_fraction": trial.suggest_float("feature_fraction", 0.2, 1, step=0.1),
+        # which fraction of dataset to create random sample
+        "bagging_fraction": trial.suggest_float("bagging_fraction", 0.2, 1, step=0.1),
+        # how often (each n iteration) we will change the bagging sample (the subset of data)
         "bagging_freq": trial.suggest_int("bagging_freq", 1, 10),
-        "lambda_l1": trial.suggest_float("lambda_l1", 1e-8, 100.0, log=True),
-        "lambda_l2": trial.suggest_float("lambda_l2", 1e-8, 100.0, log=True),
-        # this param is ignored if num_leaves specified
-        # "min_child_samples": trial.suggest_int("min_child_samples", 5, 100),
+        # regularization and overfitting reduction
+        "lambda_l1": trial.suggest_float("lambda_l1", 1e-8, 1, log=True),
+        "lambda_l2": trial.suggest_float("lambda_l2", 1e-8, 1, log=True),
+        "min_gain_to_split": trial.suggest_float("min_gain_to_split", 0, 1),
+        "path_smooth": trial.suggest_float("path_smooth", 0, 1),
+        "extra_trees": trial.suggest_categorical("extra_trees", [True, False]),
     }
 
     if trial.should_prune():
