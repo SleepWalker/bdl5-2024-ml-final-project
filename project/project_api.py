@@ -8,18 +8,26 @@ import json
 RANDOM_SEED = 42
 
 
+STORAGE = "sqlite:///optuna_studies.db"
+
+
+def set_storage(secrets: dict):
+    """
+    setup db access
+    """
+    global STORAGE
+
+    db_user = secrets["db_user"]
+    db_password = secrets["db_password"]
+    db_host = secrets["db_host"]
+    db_name = secrets["db_name"]
+
+    STORAGE = f"postgresql://{db_user}:{db_password}@{db_host}/{db_name}"
+
+
 with open("./secrets.json", "r", encoding="utf-8") as f:
     secrets = json.load(f)
-
-# setup db access
-db_user = secrets["db_user"]
-db_password = secrets["db_password"]
-db_host = secrets["db_host"]
-db_name = secrets["db_name"]
-STORAGE = (
-    # "sqlite:///optuna_studies.db"
-    f"postgresql://{db_user}:{db_password}@{db_host}/{db_name}"
-)
+    set_storage(secrets)
 
 
 def train_lgb(
