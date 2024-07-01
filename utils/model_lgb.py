@@ -16,6 +16,7 @@ def train_multiclass(
     seed: int = None,
     # if specified, we will save the model
     name: str = None,
+    cv: dict = None,
 ):
     model_path = get_model_path(name) if name else None
     should_train = not model_path or not Path(model_path).is_file()
@@ -29,18 +30,47 @@ def train_multiclass(
             "num_class": num_class,
             "objective": "multiclass",
             "metric": "multi_logloss",
-            "seed": seed,
+            # for CV it's recommended to use random initialization for estimators
+            # https://scikit-learn.org/stable/common_pitfalls.html#controlling-randomness
+            "seed": None if cv else seed,
         }
         params.update(orig_params)
 
-        model_lgb = lgb.train(
-            params,
-            dtrain,
-            valid_sets=[dtest],
-            callbacks=[
-                lgb.early_stopping(stopping_rounds=10, verbose=0),
-            ],
-        )
+        if cv:
+            # TODO: we should split the function because for
+            # cv we have different return value
+            metric_fn = cv["metric_fn"]
+            result = lgb.cv(
+                params,
+                dtrain,
+                callbacks=[
+                    lgb.early_stopping(stopping_rounds=10, verbose=0),
+                ],
+                nfold=5,
+                stratified=True,
+                shuffle=True,
+                seed=seed,
+                feval=lambda preds, train_data: (
+                    "accuracy",
+                    metric_fn(
+                        train_data.get_label(),
+                        np.argmax(preds, axis=1),
+                    ),
+                    True,
+                ),
+            )
+
+            # the last item is the best iteration
+            return result["valid accuracy-mean"][-1]
+        else:
+            model_lgb = lgb.train(
+                params,
+                dtrain,
+                valid_sets=[dtest],
+                callbacks=[
+                    lgb.early_stopping(stopping_rounds=10, verbose=0),
+                ],
+            )
 
         if model_path:
             Path(model_dir).mkdir(parents=True, exist_ok=True)

@@ -12,6 +12,7 @@ def multiclass_objective(
     metric_fn: callable,
     num_class: int,
     seed: int = None,
+    cv: bool = False,
 ):
     # see: https://lightgbm.readthedocs.io/en/latest/Parameters-Tuning.html
     params = {
@@ -38,15 +39,29 @@ def multiclass_objective(
     if trial.should_prune():
         raise optuna.TrialPruned()
 
-    predict, model = train_multiclass(
-        X_train=X_train,
-        y_train=y_train,
-        X_test=X_test,
-        y_test=y_test,
-        num_class=num_class,
-        seed=seed,
-        params=params,
-    )
-    y_pred = predict(X_test)
+    if cv:
+        metric_value = train_multiclass(
+            X_train=X_train,
+            y_train=y_train,
+            X_test=X_test,
+            y_test=y_test,
+            num_class=num_class,
+            seed=seed,
+            params=params,
+            cv={"metric_fn": metric_fn},
+        )
 
-    return metric_fn(y_test, y_pred)
+        return metric_value
+    else:
+        predict, model = train_multiclass(
+            X_train=X_train,
+            y_train=y_train,
+            X_test=X_test,
+            y_test=y_test,
+            num_class=num_class,
+            seed=seed,
+            params=params,
+        )
+        y_pred = predict(X_test)
+
+        return metric_fn(y_test, y_pred)

@@ -28,6 +28,7 @@ def train_lgb(
     y_train: pd.DataFrame,
     X_test: pd.DataFrame,
     y_test: pd.DataFrame,
+    cv: bool = False,
 ):
     study = run_optuna(
         study_name,
@@ -40,6 +41,7 @@ def train_lgb(
             metric_fn=accuracy_score,
             num_class=5,
             seed=RANDOM_SEED,
+            cv=cv,
         ),
         direction="maximize",
         n_trials=100,
