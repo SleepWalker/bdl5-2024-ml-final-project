@@ -46,7 +46,8 @@ def train_lgb(
         direction="maximize",
         n_trials=100,
         storage=STORAGE,
-        seed=RANDOM_SEED,
+        # using fixed seed may result in duplicated trials when running distributed study
+        # seed=RANDOM_SEED,
     )
 
     return study
