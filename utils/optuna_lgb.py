@@ -13,6 +13,7 @@ def multiclass_objective(
     num_class: int,
     seed: int = None,
     cv: bool = False,
+    optimize_overfitting: bool = False,
 ):
     # see: https://lightgbm.readthedocs.io/en/latest/Parameters-Tuning.html
     params = {
@@ -36,7 +37,9 @@ def multiclass_objective(
         "extra_trees": trial.suggest_categorical("extra_trees", [True, False]),
     }
 
-    if trial.should_prune():
+    # Trial.should_prune is not supported for multi-objective optimization.
+    # therefore we can not use it with optimize_overfitting
+    if not optimize_overfitting and trial.should_prune():
         raise optuna.TrialPruned()
 
     if cv:
@@ -49,6 +52,7 @@ def multiclass_objective(
             seed=seed,
             params=params,
             cv={"metric_fn": metric_fn},
+            optimize_overfitting=optimize_overfitting,
         )
 
         return metric_value

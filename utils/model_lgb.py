@@ -17,6 +17,7 @@ def train_multiclass(
     # if specified, we will save the model
     name: str = None,
     cv: dict = None,
+    optimize_overfitting: bool = False,
 ):
     model_path = get_model_path(name) if name else None
     should_train = not model_path or not Path(model_path).is_file()
@@ -50,6 +51,7 @@ def train_multiclass(
                 stratified=True,
                 shuffle=True,
                 seed=seed,
+                eval_train_metric=optimize_overfitting,
                 feval=lambda preds, train_data: (
                     "accuracy",
                     metric_fn(
@@ -61,7 +63,15 @@ def train_multiclass(
             )
 
             # the last item is the best iteration
-            return result["valid accuracy-mean"][-1]
+            return (
+                (
+                    result["train accuracy-mean"][-1]
+                    - result["valid accuracy-mean"][-1],
+                    result["valid accuracy-mean"][-1],
+                )
+                if optimize_overfitting
+                else result["valid accuracy-mean"][-1]
+            )
         else:
             model_lgb = lgb.train(
                 params,

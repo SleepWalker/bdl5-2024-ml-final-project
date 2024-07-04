@@ -12,7 +12,10 @@ def run_optuna(
     # Create a study object and optimize the objective function
     study = optuna.create_study(
         study_name=study_name,
-        direction=direction,
+        **{
+            # count for difference in param naming when using multi-param optimization
+            "direction" if type(direction) == str else "directions": direction,
+        },
         sampler=optuna.samplers.TPESampler(seed=seed),
         pruner=DuplicateIterationPruner(),
         storage=optuna.storages.RDBStorage(
@@ -27,11 +30,14 @@ def run_optuna(
     )
     optimize_with_max_trials(study, objective, n_trials=n_trials)
 
-    # Best hyperparameters found
-    print("Best hyperparameters: ", study.best_params)
+    if type(direction) == str:
+        print("Best hyperparameters: ", study.best_params)
+        print("Best score: ", study.best_value)
+    else:
+        print("Best trials:")
 
-    # Best score achieved
-    print("Best score: ", study.best_value)
+        for trial in study.best_trials:
+            print(trial)
 
     return study
 

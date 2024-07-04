@@ -37,6 +37,9 @@ def train_lgb(
     X_test: pd.DataFrame,
     y_test: pd.DataFrame,
     cv: bool = False,
+    # will add second optimization metric which is equal to difference
+    # between train/test metric
+    optimize_overfitting: bool = False,
 ):
     study = run_optuna(
         study_name,
@@ -50,8 +53,18 @@ def train_lgb(
             num_class=5,
             seed=RANDOM_SEED,
             cv=cv,
+            optimize_overfitting=optimize_overfitting,
         ),
-        direction="maximize",
+        direction=(
+            [
+                # diff between train and validation accuracy
+                "minimize",
+                # validation (CV) accuracy
+                "maximize",
+            ]
+            if optimize_overfitting
+            else "maximize"
+        ),
         n_trials=100,
         storage=STORAGE,
         # using fixed seed may result in duplicated trials when running distributed study
