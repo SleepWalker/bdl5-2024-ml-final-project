@@ -20,7 +20,7 @@ def multiclass_objective(
         "verbosity": -1,
         "boosting_type": trial.suggest_categorical("boosting_type", ["gbdt", "dart"]),
         "num_iterations": trial.suggest_int("num_iterations", 70, 1000, step=10),
-        "learning_rate": trial.suggest_float("learning_rate", 1e-8, 1.0, log=True),
+        "learning_rate": trial.suggest_float("learning_rate", 1e-5, 1.0, log=True),
         "num_leaves": trial.suggest_int("num_leaves", 2, 100),
         "min_data_in_leaf": trial.suggest_int("min_data_in_leaf", 5, 1000, step=5),
         "max_depth": trial.suggest_int("max_depth", -1, 41, step=2),
