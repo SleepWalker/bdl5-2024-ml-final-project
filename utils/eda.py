@@ -1,10 +1,21 @@
 import pandas as pd
+import numpy as np
 import matplotlib.pyplot as plt
 import seaborn as sns
 import plotly.express as px
 
 
 def print_missing(df: pd.DataFrame):
+    df_inf = df[df.isin([np.inf, -np.inf])][df.columns.to_series()[np.isinf(df).any()]]
+
+    if len(df_inf.columns):
+        print(f"Found {len(df_inf.columns)} columns with inf values")
+
+        with pd.option_context("display.max_rows", None):
+            print(df_inf)
+    else:
+        print("No columns with inf found!")
+
     na_vector = df.isna().sum()
     missing_values_totals = na_vector[na_vector > 0].sort_values(ascending=False)
     missing_values_percent = (missing_values_totals / len(df) * 100).round(2)
@@ -39,6 +50,7 @@ def print_missing(df: pd.DataFrame):
 
 
 def print_uniq(df: pd.DataFrame):
+    # TODO: df.describe(include="object") may provide good info too
     uniq_counts = df.nunique().sort_values()
 
     print("Unique values report:")

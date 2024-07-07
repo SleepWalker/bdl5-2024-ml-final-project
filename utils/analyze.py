@@ -67,18 +67,18 @@ def multiclass_report(
     y_true_val: np.ndarray = None,
     y_proba_val: np.ndarray = None,
     report=False,
+    visualization=False,
 ):
     def round(input: float) -> float:
         return np.round(input, 4)
 
     def collect_metrics(y_true, y_proba, dest: dict):
-        dest["roc_auc"] = np.round(
+        dest["roc_auc"] = round(
             roc_auc_score(
                 y_true,
                 y_proba,
                 multi_class="ovr",
-            ),
-            4,
+            )
         )
 
         y_pred = np.argmax(y_proba, axis=1)
@@ -133,71 +133,75 @@ def multiclass_report(
         print("\n")
         print("Train:")
         print(sklearn_report(y_true_tr, y_tr))
-        plot_confusion_matrix(
-            y_true_tr,
-            y_tr,
-            labels=labels,
-            subtitle="Recall. Train dataset",
-            normalize="true",
-        )
-        plot_confusion_matrix(
-            y_true_tr,
-            y_tr,
-            labels=labels,
-            subtitle="Precision. Train dataset",
-            normalize="pred",
-        )
-        plot_multiclass_roc_curve(
-            y_true_tr,
-            y_proba_tr,
-            labels=labels,
-            subtitle="Train dataset",
-        )
-        plot_scoring_distribution(
-            y_true_tr,
-            y_proba_tr,
-            labels=labels,
-            subtitle="Train dataset",
-        )
+
+        if visualization:
+            plot_confusion_matrix(
+                y_true_tr,
+                y_tr,
+                labels=labels,
+                subtitle="Recall. Train dataset",
+                normalize="true",
+            )
+            plot_confusion_matrix(
+                y_true_tr,
+                y_tr,
+                labels=labels,
+                subtitle="Precision. Train dataset",
+                normalize="pred",
+            )
+            plot_multiclass_roc_curve(
+                y_true_tr,
+                y_proba_tr,
+                labels=labels,
+                subtitle="Train dataset",
+            )
+            plot_scoring_distribution(
+                y_true_tr,
+                y_proba_tr,
+                labels=labels,
+                subtitle="Train dataset",
+            )
 
         if not y_true_val.empty:
             y_val = np.argmax(y_proba_val, axis=1)
 
             print("Test:")
             print(sklearn_report(y_true_val, y_val))
-            plot_confusion_matrix(
-                y_true_val,
-                y_val,
-                labels=labels,
-                subtitle="Recall. Test dataset",
-                normalize="true",
-            )
-            plot_confusion_matrix(
-                y_true_val,
-                y_val,
-                labels=labels,
-                subtitle="Precision. Test dataset",
-                normalize="pred",
-            )
-            plot_multiclass_roc_curve(
-                y_true_val,
-                y_proba_val,
-                labels=labels,
-                subtitle="Test dataset",
-            )
-            plot_multiclass_roc_curve_train_vs_test(
-                y_true_tr=y_true_tr,
-                y_proba_tr=y_proba_tr,
-                y_true_val=y_true_val,
-                y_proba_val=y_proba_val,
-                labels=labels,
-            )
-            plot_scoring_distribution(
-                y_true_val,
-                y_proba_val,
-                labels=labels,
-                subtitle="Test dataset",
-            )
+
+            if visualization:
+                plot_confusion_matrix(
+                    y_true_val,
+                    y_val,
+                    labels=labels,
+                    subtitle="Recall. Test dataset",
+                    normalize="true",
+                )
+                plot_confusion_matrix(
+                    y_true_val,
+                    y_val,
+                    labels=labels,
+                    subtitle="Precision. Test dataset",
+                    normalize="pred",
+                )
+                plot_multiclass_roc_curve(
+                    y_true_val,
+                    y_proba_val,
+                    labels=labels,
+                    subtitle="Test dataset",
+                )
+                plot_multiclass_roc_curve_train_vs_test(
+                    y_true_tr=y_true_tr,
+                    y_proba_tr=y_proba_tr,
+                    y_true_val=y_true_val,
+                    y_proba_val=y_proba_val,
+                    labels=labels,
+                )
+                plot_scoring_distribution(
+                    y_true_val,
+                    y_proba_val,
+                    labels=labels,
+                    subtitle="Test dataset",
+                )
 
 
 def plot_confusion_matrix(
