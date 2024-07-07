@@ -40,6 +40,9 @@ def train_lgb(
     # will add second optimization metric which is equal to difference
     # between train/test metric
     optimize_overfitting: bool = False,
+    # overrides to narrow down the search
+    # {"param": [from, to], "param2": [[cat1, cat2, cat3]]}
+    param_overrides: dict = {},
 ):
     study = run_optuna(
         study_name,
@@ -54,6 +57,7 @@ def train_lgb(
             seed=RANDOM_SEED,
             cv=cv,
             optimize_overfitting=optimize_overfitting,
+            param_overrides=param_overrides,
         ),
         direction=(
             [

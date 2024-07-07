@@ -14,28 +14,41 @@ def multiclass_objective(
     seed: int = None,
     cv: bool = False,
     optimize_overfitting: bool = False,
+    # overrides to narrow down the search
+    # {"param": [from, to], "param2": [[cat1, cat2, cat3]]}
+    param_overrides: dict = {},
 ):
     # see: https://lightgbm.readthedocs.io/en/latest/Parameters-Tuning.html
+    config = {
+        "boosting_type": ["categorical", [["gbdt", "dart"]]],
+        "num_iterations": ["int", [70, 1000], {"step": 10}],
+        "learning_rate": ["float", [1e-5, 1], {"log": True}],
+        "num_leaves": ["int", [2, 100]],
+        "min_data_in_leaf": ["int", [5, 1000], {"step": 5}],
+        "max_depth": ["int", [-1, 41], {"step": 2}],
+        "feature_fraction": ["float", [0.2, 1], {"step": 0.1}],
+        # which fraction of dataset to create random sample
+        "bagging_fraction": ["float", [0.2, 1], {"step": 0.1}],
+        # how often (each n iteration) we will change the bagging sample (the subset of data)
+        "bagging_freq": ["int", [1, 10]],
+        # regularization and overfitting reduction
+        "lambda_l1": ["float", [1e-8, 1], {"log": True}],
+        "lambda_l2": ["float", [1e-8, 1], {"log": True}],
+        "min_gain_to_split": ["float", [0, 1], {"step": 0.01}],
+        "path_smooth": ["float", [0, 1], {"step": 0.01}],
+        "extra_trees": ["categorical", [[True, False]]],
+    }
     params = {
         "verbosity": -1,
-        "boosting_type": trial.suggest_categorical("boosting_type", ["gbdt", "dart"]),
-        "num_iterations": trial.suggest_int("num_iterations", 70, 1000, step=10),
-        "learning_rate": trial.suggest_float("learning_rate", 1e-5, 1.0, log=True),
-        "num_leaves": trial.suggest_int("num_leaves", 2, 100),
-        "min_data_in_leaf": trial.suggest_int("min_data_in_leaf", 5, 1000, step=5),
-        "max_depth": trial.suggest_int("max_depth", -1, 41, step=2),
-        "feature_fraction": trial.suggest_float("feature_fraction", 0.2, 1, step=0.1),
-        # which fraction of dataset to create random sample
-        "bagging_fraction": trial.suggest_float("bagging_fraction", 0.2, 1, step=0.1),
-        # how often (each n iteration) we will change the bagging sample (the subset of data)
-        "bagging_freq": trial.suggest_int("bagging_freq", 1, 10),
-        # regularization and overfitting reduction
-        "lambda_l1": trial.suggest_float("lambda_l1", 1e-8, 1, log=True),
-        "lambda_l2": trial.suggest_float("lambda_l2", 1e-8, 1, log=True),
-        "min_gain_to_split": trial.suggest_float("min_gain_to_split", 0, 1),
-        "path_smooth": trial.suggest_float("path_smooth", 0, 1),
-        "extra_trees": trial.suggest_categorical("extra_trees", [True, False]),
     }
+
+    for key, value in config.items():
+        type = value[0]
+        args = param_overrides[key] if key in param_overrides else value[1]
+        kwargs = value[2] if len(value) == 3 else {}
+
+        params[key] = getattr(trial, f"suggest_{type}")(key, *args, **kwargs)
+
 
     # Trial.should_prune is not supported for multi-objective optimization.
     # therefore we can not use it with optimize_overfitting

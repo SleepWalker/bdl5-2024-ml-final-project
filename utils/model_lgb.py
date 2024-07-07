@@ -1,7 +1,11 @@
+from BorutaShap import BorutaShap
+from lightgbm import LGBMClassifier
 import lightgbm as lgb
 import pandas as pd
 import numpy as np
 from pathlib import Path
+from . import io
+
 
 model_dir = "./models"
 
@@ -115,3 +119,60 @@ def get_model_with_predict(model_lgb: lgb.Booster):
 
 def get_model_path(name: str) -> str:
     return f"{model_dir}/{name}.lgb.txt"
+
+
+def boruta_select_features(
+    X: pd.DataFrame,
+    y: pd.DataFrame,
+    params: dict,
+    # path without extension, e.g. ./data/borutashap_feature_importance
+    output_basename: str,
+    n_trials: int = 50,
+    seed: int = None,
+    classification: bool = True,
+):
+    def calc_boruta():
+        Feature_Selector = BorutaShap(
+            importance_measure="shap",
+            classification=classification,
+            model=LGBMClassifier(**params),
+        )
+
+        Feature_Selector.fit(
+            X=X.fillna(-1),
+            y=y,
+            # unfortunately the 'test' value does not makes the lib to measure importance
+            # on test set https://github.com/Ekeany/Boruta-Shap/issues/126
+            # moreover this lib makes train/test split under the hood so we can not feed
+            # it with our test set
+            train_or_test="train",
+            random_state=seed,
+            n_trials=n_trials,
+        )
+
+        Feature_Selector.results_to_csv(output_basename)
+
+        return pd.read_csv(f"{output_basename}.csv")
+
+    df_boruta = io.run_cached(f"{output_basename}.parquet", calc_boruta)
+
+    attr_important = df_boruta[df_boruta["Decision"] == "Accepted"][
+        "Features"
+    ].values.tolist()
+    attr_tentative = df_boruta[df_boruta["Decision"] == "Tentative"][
+        "Features"
+    ].values.tolist()
+    attr_rejected = df_boruta[df_boruta["Decision"] == "Rejected"][
+        "Features"
+    ].values.tolist()
+
+    print(f"{len(attr_important)} attributes confirmed important: {attr_important}")
+    print(f"\n\n{len(attr_tentative)} attributes confirmed tentative: {attr_tentative}")
+    print(f"\n\n{len(attr_rejected)} attributes confirmed unimportant: {attr_rejected}")
+
+    return {
+        "df_boruta": df_boruta,
+        "important": attr_important,
+        "tentative": attr_tentative,
+        "rejected": attr_rejected,
+    }
