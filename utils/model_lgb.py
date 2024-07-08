@@ -22,7 +22,7 @@ def train_multiclass(
     name: str = None,
     cv: dict = None,
     optimize_overfitting: bool = False,
-):
+) -> tuple[callable, lgb.Booster]:
     model_path = get_model_path(name) if name else None
     should_train = not model_path or not Path(model_path).is_file()
 

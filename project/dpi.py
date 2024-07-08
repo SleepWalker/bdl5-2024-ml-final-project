@@ -1,5 +1,5 @@
-from pathlib import Path
 import pandas as pd
+import numpy as np
 from utils import compress_df
 from utils import io
 from utils import eda
@@ -47,9 +47,13 @@ def collect_extra_fe(df: pd.DataFrame):
     )
 
     df_dpi_extra_fe["avg_session_bandwidth_kbs"] = (
-        df_dpi_extra_fe["total_SUM_of_Volume_kb"]
-        / df_dpi_extra_fe["total_SUM_of_Duration_sec"]
-    ).fillna(0)
+        (
+            df_dpi_extra_fe["total_SUM_of_Volume_kb"]
+            / df_dpi_extra_fe["total_SUM_of_Duration_sec"]
+        )
+        .replace([np.inf, -np.inf], np.nan)
+        .fillna(0)
+    )
 
     df_dpi_extra_fe["avg_days_per_app"] = (
         df_dpi_extra_fe["total_MAX_of_day_cnt"] / df_dpi_extra_fe["total_apps"]
@@ -90,88 +94,24 @@ def preprocess(
     def do_process():
         df_dpi = pd.read_parquet(dpi_path)
 
-        # expose index as column
-        df_dpi["abon_id"] = df_dpi.index
-        df_dpi = df_dpi.reset_index(drop=True)
-
         df_abon_extra_fe = collect_extra_fe(df_dpi)
 
         all_dpi = io.read_json(dpi_selection_path)
 
-        # drop apps we do not support
-        df_dpi = df_dpi[df_dpi["Application"].isin(all_dpi)]
-
-        # group dataset by subscriber and flatten all related to subscriber data in one row
-        abon_apps = df_dpi.groupby("abon_id")
-        col_to_flatten = [
-            "MAX_of_day_cnt",
-            "SUM_of_Duration_sec",
-            "SUM_of_Count_events",
-            "SUM_of_Volume_kb",
-            # the rate of particular app daily activity among all subscriber apps
-            "daily_session_dur_rate",
-            "daily_session_cnt_rate",
-            "daily_traffic_rate",
-        ]
-
-        index_map = {}
-        columns = ["abon_id"]
-
-        # create columns that we will require to populate
-        for app in all_dpi:
-            for source_key in col_to_flatten:
-                key = f"{source_key}_{app}"
-                index_map[key] = len(columns)
-                columns.append(key)
-
-        # -1 because we will pre-populate abon_id
-        empty_row = [0] * (len(columns) - 1)
-
-        def row_generator():
-            for abon_id, df_abon in abon_apps:
-                abon_row = [abon_id] + empty_row
-
-                # add extra features to rank app importance among other subscriber's apps
-                df_abon["daily_session_dur"] = (
-                    df_abon["SUM_of_Duration_sec"] / df_abon["MAX_of_day_cnt"]
-                )
-                df_abon["daily_session_dur_rate"] = (
-                    df_abon["daily_session_dur"] / df_abon["daily_session_dur"].sum()
-                )
-
-                df_abon["daily_session_cnt"] = (
-                    df_abon["SUM_of_Count_events"] / df_abon["MAX_of_day_cnt"]
-                )
-                df_abon["daily_session_cnt_rate"] = (
-                    df_abon["daily_session_cnt"] / df_abon["daily_session_cnt"].sum()
-                )
-
-                df_abon["daily_traffic"] = (
-                    df_abon["SUM_of_Volume_kb"] / df_abon["MAX_of_day_cnt"]
-                )
-                df_abon["daily_traffic_rate"] = (
-                    df_abon["daily_traffic"] / df_abon["daily_traffic"].sum()
-                )
-
-                for _, app_row in df_abon.iterrows():
-                    for source_key in col_to_flatten:
-                        # pandas messes app dtypes after iterrows(). Ensure app is int
-                        key = f"{source_key}_{int(app_row['Application'])}"
-                        abon_row[index_map[key]] = app_row[source_key]
-
-                yield abon_row
-
-        X = compress_df(pd.DataFrame(row_generator(), columns=columns)).set_index(
-            "abon_id"
+        X = flatten(
+            df_dpi=df_dpi,
+            dpi_list=all_dpi,
+            features=(
+                io.read_json(feature_selection_path) if feature_selection_path else []
+            ),
         )
-        X = X.merge(
+
+        return X.merge(
             df_abon_extra_fe,
             how="left",
             left_index=True,
             right_index=True,
         )
-
-        return X
 
     X = io.run_cached(destination_path, do_process)
 
@@ -188,3 +128,96 @@ def preprocess(
         X = X[features]
 
     return (X, y)
+
+
+def flatten(
+    df_dpi: pd.DataFrame,
+    # list of dpi to include in resulting dataset
+    dpi_list: list = [],
+    # list of aggregated feature names (the names from resulting dataset) to include in final dataset
+    features: list = [],
+) -> pd.DataFrame:
+
+    # expose abon_id index as column
+    df_dpi = df_dpi.reset_index()
+
+    if len(dpi_list):
+        # drop apps we do not support
+        df_dpi = df_dpi[df_dpi["Application"].isin(dpi_list)]
+
+    # group dataset by subscriber and flatten all related to subscriber data in one row
+    col_to_flatten = [
+        "MAX_of_day_cnt",
+        "SUM_of_Duration_sec",
+        "SUM_of_Count_events",
+        "SUM_of_Volume_kb",
+        # the rate of particular app daily activity among all subscriber apps
+        "daily_session_dur_rate",
+        "daily_session_cnt_rate",
+        "daily_traffic_rate",
+    ]
+
+    index_map = {}
+    columns = ["abon_id"]
+    apps_to_pick = set()
+
+    # create columns that we will require to populate
+    for app in df_dpi["Application"].unique():
+        for source_key in col_to_flatten:
+            key = f"{source_key}_{app}"
+
+            if len(features) and not (key in features):
+                continue
+
+            index_map[key] = len(columns)
+            columns.append(key)
+            apps_to_pick.add(app)
+
+    # -1 because we will pre-populate abon_id
+    empty_row = [0] * (len(columns) - 1)
+    abon_apps = df_dpi[df_dpi["Application"].isin(list(apps_to_pick))].groupby(
+        "abon_id"
+    )
+
+    def row_generator():
+        for abon_id, df_abon in abon_apps:
+            abon_row = [abon_id] + empty_row
+
+            # add extra features to rank app importance among other subscriber's apps
+            df_abon["daily_session_dur"] = (
+                df_abon["SUM_of_Duration_sec"] / df_abon["MAX_of_day_cnt"]
+            )
+            df_abon["daily_session_dur_rate"] = (
+                df_abon["daily_session_dur"] / df_abon["daily_session_dur"].sum()
+            )
+
+            df_abon["daily_session_cnt"] = (
+                df_abon["SUM_of_Count_events"] / df_abon["MAX_of_day_cnt"]
+            )
+            df_abon["daily_session_cnt_rate"] = (
+                df_abon["daily_session_cnt"] / df_abon["daily_session_cnt"].sum()
+            )
+
+            df_abon["daily_traffic"] = (
+                df_abon["SUM_of_Volume_kb"] / df_abon["MAX_of_day_cnt"]
+            )
+            df_abon["daily_traffic_rate"] = (
+                df_abon["daily_traffic"] / df_abon["daily_traffic"].sum()
+            )
+
+            for _, app_row in df_abon.iterrows():
+                for source_key in col_to_flatten:
+                    # pandas messes app dtypes after iterrows(). Ensure app is int
+                    key = f"{source_key}_{int(app_row['Application'])}"
+
+                    if key in index_map:
+                        abon_row[index_map[key]] = app_row[source_key]
+
+            yield abon_row
+
+    return compress_df(
+        pd.DataFrame(
+            row_generator(),
+            columns=columns,
+        )
+    ).set_index("abon_id")

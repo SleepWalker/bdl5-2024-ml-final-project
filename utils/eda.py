@@ -2,17 +2,19 @@ import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 import seaborn as sns
-import plotly.express as px
 
 
 def print_missing(df: pd.DataFrame):
-    df_inf = df[df.isin([np.inf, -np.inf])][df.columns.to_series()[np.isinf(df).any()]]
+    df_inf = df.select_dtypes(include=["int", "float"])
+    df_inf = df_inf[df_inf.isin([np.inf, -np.inf])][
+        df_inf.columns.to_series()[np.isinf(df_inf).any()]
+    ]
 
     if len(df_inf.columns):
         print(f"Found {len(df_inf.columns)} columns with inf values")
 
         with pd.option_context("display.max_rows", None):
-            print(df_inf)
+            print(df_inf[df_inf.isin([np.inf, -np.inf]).any(axis=1)])
     else:
         print("No columns with inf found!")
 
