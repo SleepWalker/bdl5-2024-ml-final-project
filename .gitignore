@@ -1,7 +1,11 @@
 __pycache__
+*.sql
+*.zip
 *.pcl
 *.pdf
 *.xlsx
 /data
 /models
 secrets.json
+fetch-optuna-sql.sh
+NOTES.md

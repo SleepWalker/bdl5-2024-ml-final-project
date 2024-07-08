@@ -186,11 +186,11 @@ def compile_features(
             how="left",
             left_index=True,
             right_index=True,
-        )
+        ).reindex(columns=features)
 
     print(f"\nTotal features: {X.shape}")
 
-    return compress_df(X.reindex(columns=features))
+    return compress_df(X)
 
 
 def run_with_cache(

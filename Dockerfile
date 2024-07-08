@@ -8,7 +8,9 @@ RUN pip install --no-cache-dir \
   plotly \
   lightgbm \
   BorutaShap \
+  "shap==0.44.1" \
   torchmetrics \
   torchinfo \
+  dask \
   # postgress client
   psycopg2-binary
