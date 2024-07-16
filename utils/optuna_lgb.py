@@ -32,8 +32,8 @@ def multiclass_objective(
         # how often (each n iteration) we will change the bagging sample (the subset of data)
         "bagging_freq": ["int", [1, 10]],
         # regularization and overfitting reduction
-        "lambda_l1": ["float", [1e-8, 1], {"log": True}],
-        "lambda_l2": ["float", [1e-8, 1], {"log": True}],
+        "lambda_l1": ["float", [1e-8, 20], {"log": True}],
+        "lambda_l2": ["float", [1e-8, 20], {"log": True}],
         "min_gain_to_split": ["float", [0, 1], {"step": 0.01}],
         "path_smooth": ["float", [0, 1], {"step": 0.01}],
         "extra_trees": ["categorical", [[True, False]]],
