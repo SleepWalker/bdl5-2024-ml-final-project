@@ -5,6 +5,7 @@ from utils import compress_df
 import utils.model_lgb as model_lgb
 from project import bnum
 from project import dpi
+import time
 
 """
 This package contains all functions required to train and execute production model
@@ -92,6 +93,7 @@ def compile_features(
     df_dpi: pd.DataFrame,
     cache_key: str = None,
 ) -> pd.DataFrame:
+    preprocess_start = time.time()
     features = io.read_json("./data/all_in_one_cv_features.json")
     intersect = lambda lst: list(set(features).intersection(lst))
 
@@ -190,7 +192,10 @@ def compile_features(
 
     print(f"\nTotal features: {X.shape}")
 
-    return compress_df(X)
+    result = compress_df(X)
+    print(f"Preprocessing time: {time.time() - preprocess_start:.2f} seconds")
+
+    return result
 
 
 def run_with_cache(
@@ -239,7 +244,9 @@ def predict(
         df_dpi=df_dpi,
     )
 
+    prediction_start = time.time()
     y_pred = predict(X)
+    print(f"Prediction time: {time.time() - prediction_start:.2f} seconds")
 
     labels = ["<20", "20-30", "30-40", "40-50", ">50"]
 

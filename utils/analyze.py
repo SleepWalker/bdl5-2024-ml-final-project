@@ -218,21 +218,22 @@ def plot_confusion_matrix(
     if subtitle:
         title = f"{title} ({subtitle})"
 
-    fig = px.imshow(
+    px.imshow(
         pd.DataFrame(data, index=labels, columns=labels),
-        text_auto=".2f",
+        text_auto=".0%",
         title=title,
-        height=700,
-        width=700,
-    )
-    fig.update_xaxes(
+        height=800,
+        width=800,
+    ).update_xaxes(
         showgrid=False,
         title_text="predicted label",
     ).update_yaxes(
         showgrid=False,
         title_text="actual label",
-    )
-    fig.show()
+    ).update_layout(
+        title_font_size=30,
+        font_size=15,
+    ).show()
 
 
 def plot_multiclass_roc_curve(
