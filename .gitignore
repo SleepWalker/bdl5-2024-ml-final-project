@@ -6,7 +6,6 @@ __pycache__
 *.xlsx
 /data
 /models
-/presentation
 secrets.json
 fetch-optuna-sql.sh
 NOTES.md
